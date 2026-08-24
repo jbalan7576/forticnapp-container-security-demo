@@ -59,7 +59,7 @@ jobs:
             --policy \
             --html \
             --html-file=/results/forticnapp-report.html \
-            --critical-violation-exit-code 2
+            --medium-violation-exit-code 2
 
       - name: Upload FortiCNAPP report
         if: always()
