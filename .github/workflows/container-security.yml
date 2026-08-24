@@ -1,0 +1,71 @@
+name: Build, FortiCNAPP scan, and publish
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+  attestations: write
+  id-token: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_TAG: ${{ github.sha }}
+  FORTICNAPP_SCANNER_IMAGE: lacework/lacework-inline-scanner:latest
+
+jobs:
+  build-scan-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Build container image locally
+        run: |
+          docker build             --label org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}"             --tag "${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"             .
+
+      - name: Run FortiCNAPP inline container scan
+        env:
+          LW_ACCOUNT_NAME: ${{ secrets.LW_ACCOUNT_NAME }}
+          LW_ACCESS_TOKEN: ${{ secrets.LW_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p forticnapp-results
+
+          docker pull "${FORTICNAPP_SCANNER_IMAGE}"
+
+          docker run --rm             -e LW_ACCOUNT_NAME             -e LW_ACCESS_TOKEN             -e LW_SCANNER_DISABLE_UPDATES=true             -v /var/run/docker.sock:/var/run/docker.sock             -v "${PWD}/forticnapp-results:/results"             "${FORTICNAPP_SCANNER_IMAGE}"             image evaluate "${REGISTRY}/${IMAGE_NAME}" "${IMAGE_TAG}"               --build-id "${GITHUB_RUN_ID}"               --build-plan "${GITHUB_WORKFLOW}"               --save               --policy               --critical-violation-exit-code 2               --html               --html-file=/results/forticnapp-report.html
+
+      - name: Upload FortiCNAPP report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: forticnapp-scan-report
+          path: forticnapp-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+      # This step is deliberately AFTER the scan.
+      # Therefore an enforced Critical policy violation prevents publication.
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push image to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker push "${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+          docker tag             "${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"             "${REGISTRY}/${IMAGE_NAME}:latest"
+          docker push "${REGISTRY}/${IMAGE_NAME}:latest"

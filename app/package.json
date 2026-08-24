@@ -1,0 +1,12 @@
+{
+  "name": "forticnapp-ghcr-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal containerized web application for FortiCNAPP CI/CD scanning.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "4.21.2"
+  }
+}
