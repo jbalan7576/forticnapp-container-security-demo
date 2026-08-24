@@ -32,7 +32,12 @@ jobs:
         run: |
           docker build             --label org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}"             --tag "${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"             .
       
-
+      - name: Check docker syntax
+        run: |
+          docker run --rm \
+          lacework/lacework-inline-scanner:latest \
+          image evaluate --help 
+          
       - name: Run FortiCNAPP inline container scan
         env:
           LW_ACCOUNT_NAME: ${{ secrets.LW_ACCOUNT_NAME }}
