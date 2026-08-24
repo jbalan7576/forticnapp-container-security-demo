@@ -38,7 +38,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p forticnapp-results
-
+          # Configure the Lacework CLI with account, API key, and secret from GitHub secrets 
+          lacework configure -a ${{ secrets.LW_ACCOUNT }}.lacework.net -k ${{ secrets.LW_API_KEY }} -s ${{ secrets.LW_API_SECRET }} --noninteractive 
           docker pull "${FORTICNAPP_SCANNER_IMAGE}"
 
           docker run --rm \
