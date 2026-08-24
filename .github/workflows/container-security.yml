@@ -31,13 +31,6 @@ jobs:
       - name: Build container image locally
         run: |
           docker build             --label org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}"             --tag "${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"             .
-      - name: Check FortiCNAPP scanner version
-        run: |
-          docker pull "${FORTICNAPP_SCANNER_IMAGE}"
-          docker run --rm \
-            "${FORTICNAPP_SCANNER_IMAGE}" \
-            lw-scanner config auth --help
-
       - name: Run FortiCNAPP inline container scan
         env:
           LW_ACCOUNT_NAME: ${{ secrets.LW_ACCOUNT_NAME }}
@@ -48,7 +41,24 @@ jobs:
 
           docker pull "${FORTICNAPP_SCANNER_IMAGE}"
 
-          docker run --rm             -e LW_ACCOUNT_NAME             -e LW_ACCESS_TOKEN             -e LW_SCANNER_DISABLE_UPDATES=true             -v /var/run/docker.sock:/var/run/docker.sock             -v "${PWD}/forticnapp-results:/results"             "${FORTICNAPP_SCANNER_IMAGE}"             image evaluate "${REGISTRY}/${IMAGE_NAME}" "${IMAGE_TAG}"               --build-id "${GITHUB_RUN_ID}"               --build-plan "${GITHUB_WORKFLOW}"               --save               --policy               --critical-violation-exit-code 2               --html               --html-file=/results/forticnapp-report.html
+          docker run --rm \
+            -e LW_ACCOUNT_NAME \
+            -e LW_ACCESS_TOKEN \
+            -e LW_SCANNER_DISABLE_UPDATES=true \
+            -e LW_SCANNER_SAVE_RESULTS=true \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "${PWD}/forticnapp-results:/results" \
+            "${FORTICNAPP_SCANNER_IMAGE}" \
+            image evaluate \
+            "${REGISTRY}/${IMAGE_NAME}" \
+            "${IMAGE_TAG}" \
+            --build-id "${GITHUB_RUN_ID}" \
+            --build-plan "${GITHUB_WORKFLOW}" \
+            --save \
+            --policy \
+            --html \
+            --html-file=/results/forticnapp-report.html \
+            --critical-violation-exit-code 2
 
       - name: Upload FortiCNAPP report
         if: always()
