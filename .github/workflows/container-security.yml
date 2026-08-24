@@ -31,6 +31,12 @@ jobs:
       - name: Build container image locally
         run: |
           docker build             --label org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}"             --tag "${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"             .
+      - name: Check FortiCNAPP scanner version
+        run: |
+          docker pull "${FORTICNAPP_SCANNER_IMAGE}"
+          docker run --rm \
+            "${FORTICNAPP_SCANNER_IMAGE}" \
+            lw-scanner config auth --help
 
       - name: Run FortiCNAPP inline container scan
         env:
